@@ -10,7 +10,7 @@ import (
 type Hash func(data []byte) uint32
 
 // Map contains all hashed keys
-type Map struct {
+type ConsistentHashMap struct {
 	hash     Hash
 	replicas int
 	keys     []int
@@ -18,8 +18,8 @@ type Map struct {
 }
 
 // New creates a Map instance
-func New(replicas int, fn Hash) *Map {
-	m := &Map{
+func NewConsistentHashMap(replicas int, fn Hash) *ConsistentHashMap {
+	m := &ConsistentHashMap{
 		replicas: replicas,
 		hash:     fn,
 		hashMap:  make(map[int]string),
@@ -31,24 +31,24 @@ func New(replicas int, fn Hash) *Map {
 }
 
 // Add adds some keys to the hash, add nodes to the ring
-func (m *Map) Add(keys ...string) {
-	for _, key := range keys {
+func (m *ConsistentHashMap) AddNode(peers ...string) {
+	for _, peer := range peers {
 		for i := 0; i < m.replicas; i++ {
 			// name virtual node as index + key, and do the hash
-			hash := int(m.hash([]byte(strconv.Itoa(i) + key)))
+			hash := int(m.hash([]byte(strconv.Itoa(i) + peer)))
 
 			// add virtual node hash to the ring
 			m.keys = append(m.keys, hash)
 
 			// add virtual node read node mapping to the map
-			m.hashMap[hash] = key
+			m.hashMap[hash] = peer
 		}
 	}
 	sort.Ints(m.keys)
 }
 
 // Get the node by a key
-func (m *Map) Get(key string) string {
+func (m *ConsistentHashMap) Get(key string) string {
 	// no nodes
 	if len(m.keys) == 0 {
 		return ""

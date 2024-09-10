@@ -1,13 +1,16 @@
 package cache
 
 import (
+	"distributed_cache/consistenthash"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 const defaultBasePath = "/_cache/"
+const defaultReplicas = 50
 
 // HTTPPool is a struct for the pool of HTTP peers
 type HttpPool struct {
@@ -16,6 +19,15 @@ type HttpPool struct {
 
 	// the base path for the cache service
 	basePath string
+
+	// getting the peers
+	peers *consistenthash.ConsistentHashMap
+
+	// protect the httpGetters
+	mu sync.Mutex
+
+	// map of the httpGetters
+	httpGetters map[string]*httpGetter
 }
 
 func NewHttpPool(self string) *HttpPool {
@@ -25,6 +37,7 @@ func NewHttpPool(self string) *HttpPool {
 	}
 }
 
+// helper function to log the server
 func (p *HttpPool) Log(format string, v ...interface{}) {
 	log.Printf("[Server %s] %s", p.self, fmt.Sprintf(format, v...))
 }
@@ -65,4 +78,31 @@ func (p *HttpPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// write the data to the response
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(view.ByteSlice())
+}
+
+// Set updates the pool's list of peers
+func (p *HttpPool) SetHttpPool(peers ...string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.peers = consistenthash.NewConsistentHashMap(defaultReplicas, nil)
+	p.peers.AddNode(peers...)
+	p.httpGetters = make(map[string]*httpGetter, len(peers))
+	for _, peer := range peers {
+		p.httpGetters[peer] = &httpGetter{baseURL: peer + p.basePath}
+	}
+}
+
+// PickPeer picks a peer according to the key
+func (p *HttpPool) PickPeer(key string) (PeerGetter, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// get peer from consistent hash
+	if peer := p.peers.Get(key); peer != "" && peer != p.self {
+		p.Log("Pick peer %s", peer)
+		return p.httpGetters[peer], true
+	}
+
+	return nil, false
 }

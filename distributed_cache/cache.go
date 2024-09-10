@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+/// This cache file is a wrapper for the lru cache package, for support concurrent access
+
 // Define a struct instead of an interface
 type Cache struct {
 	mu         sync.Mutex

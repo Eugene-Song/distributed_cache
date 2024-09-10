@@ -1,5 +1,8 @@
 package cache
 
+/// for saving the actual data in the cache
+
+
 // for saving the data in the cache
 // byte for allowing all kinds of data
 type ByteView struct {
