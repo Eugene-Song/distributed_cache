@@ -23,7 +23,7 @@ type httpGetter struct {
 
 func (h *httpGetter) GetFromPeer(group string, key string) ([]byte, error) {
 	// use queryescape to clean the group and key
-	u := fmt.Sprintf("%v/%v/%v", h.baseURL, url.QueryEscape(group), url.QueryEscape(key))
+	u := fmt.Sprintf("%v%v/%v", h.baseURL, url.QueryEscape(group), url.QueryEscape(key))
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err
